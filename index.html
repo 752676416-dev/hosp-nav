@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🏥 预约导航</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #f5f7fa;
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+    color: #1a2a3a;
+  }
+
+  .header { text-align: center; padding: 16px 0 24px; }
+  .header-icon { font-size: 44px; }
+  .header-title { font-size: 22px; font-weight: 700; display: block; margin-top: 6px; }
+  .header-tip { font-size: 12px; color: #8a9baa; display: block; margin-top: 6px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 14px 6px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    position: relative;
+    cursor: pointer;
+    min-height: 96px;
+    transition: transform 0.12s;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .card:active { transform: scale(0.94); background: #f8faff; }
+
+  .card-icon {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: #f0f6ff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    margin-bottom: 6px;
+  }
+  .card-name {
+    font-size: 12px; font-weight: 600;
+    max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    line-height: 1.3;
+  }
+  .card-desc { font-size: 10px; color: #8a9baa; margin-top: 2px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .card-tag {
+    position: absolute; top: 6px; right: 6px;
+    font-size: 9px; padding: 1px 6px; border-radius: 8px; line-height: 1.4;
+  }
+  .tag-web { background: #e8f4fd; color: #2e7fb8; }
+  .tag-mini { background: #e8fae8; color: #2e8b57; }
+  .tag-custom { background: #fdf3e3; color: #b07c2e; }
+
+  .card-add {
+    background: #f8faff;
+    border: 1.5px dashed #c0d4e8;
+    box-shadow: none;
+  }
+  .card-add:active { background: #eef4ff; }
+  .add-icon { font-size: 26px; color: #4a90d9; font-weight: 300; line-height: 1; }
+  .add-text { font-size: 11px; color: #4a90d9; margin-top: 4px; }
+
+  .footer {
+    margin-top: 28px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    font-size: 12px;
+    color: #5a6a7a;
+    line-height: 1.9;
+  }
+  .footer b { color: #2c3e50; }
+
+  /* 弹窗 */
+  .mask {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .mask.show { display: flex; }
+  .modal {
+    width: 88%;
+    max-width: 380px;
+    background: #fff;
+    border-radius: 16px;
+    padding: 22px 20px;
+  }
+  .modal h3 { font-size: 17px; margin-bottom: 16px; text-align: center; }
+  .modal .row { margin-bottom: 12px; }
+  .modal label { font-size: 12px; color: #8a9baa; display: block; margin-bottom: 5px; }
+  .modal input, .modal select, .modal textarea {
+    width: 100%;
+    border: 1px solid #e0e6ee;
+    border-radius: 8px;
+    padding: 9px 10px;
+    font-size: 14px;
+    outline: none;
+    background: #fafbfc;
+    font-family: inherit;
+  }
+  .modal input:focus, .modal textarea:focus { border-color: #4a90d9; background: #fff; }
+  .modal textarea { resize: vertical; min-height: 48px; }
+  .modal .btns { display: flex; gap: 10px; margin-top: 16px; }
+  .modal .btns button {
+    flex: 1;
+    border: none;
+    border-radius: 10px;
+    height: 42px;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .btn-cancel { background: #f0f2f5; color: #5a6a7a; }
+  .btn-save { background: #4a90d9; color: #fff; font-weight: 600; }
+  .btn-save:active { background: #3a80c9; }
+
+  .toast {
+    position: fixed;
+    left: 50%; bottom: 40px;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.78);
+    color: #fff;
+    font-size: 13px;
+    padding: 10px 18px;
+    border-radius: 20px;
+    display: none;
+    z-index: 200;
+    max-width: 85%;
+    text-align: center;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <span class="header-icon">🏥</span>
+    <span class="header-title">预约导航</span>
+    <span class="header-tip">网页直接跳转 · 小程序复制链接到微信打开</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="footer">
+    <b>📌 使用说明</b><br>
+    · 网页入口 → 点击直接跳转打开<br>
+    · 小程序入口 → 点击自动复制，粘贴到微信对话框即可打开<br>
+    · 添加按钮 → 新增自定义入口（长按卡片可删除）
+  </div>
+
+  <!-- 添加弹窗 -->
+  <div class="mask" id="mask">
+    <div class="modal">
+      <h3>＋ 添加入口</h3>
+      <div class="row">
+        <label>名称</label>
+        <input id="f_name" placeholder="如：XX医院">
+      </div>
+      <div class="row">
+        <label>图标 (emoji)</label>
+        <input id="f_icon" placeholder="默认 🏥" value="🏥">
+      </div>
+      <div class="row">
+        <label>类型</label>
+        <select id="f_type">
+          <option value="url">网页（点击直接跳转）</option>
+          <option value="miniprogram">小程序（复制链接）</option>
+        </select>
+      </div>
+      <div class="row" id="row_url">
+        <label>网页链接</label>
+        <textarea id="f_url" placeholder="https://..."></textarea>
+      </div>
+      <div class="row" id="row_share" style="display:none">
+        <label>小程序分享链接</label>
+        <textarea id="f_share" placeholder="#小程序://名称/xxx"></textarea>
+      </div>
+      <div class="btns">
+        <button class="btn-cancel" onclick="closeModal()">取消</button>
+        <button class="btn-save" onclick="saveItem()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var DEFAULTS = [
+    { id: 'sz_child', name: '第三儿童医院', desc: '预约挂号', icon: '👶', tag: '网页', type: 'url', url: 'https://zhjkt.stch-gzh.cn/dist/#/pages/packageO2O/outPatient/appointment/selectDepartment?orgId=694a08fd5db8410001ba7acf&localOrgId=JG000001' },
+    { id: 'lg_six', name: '龙岗六院', desc: '预约挂号', icon: '🏥', tag: '网页', type: 'url', url: 'https://lgjkzx.lggov.cn/mps-area-version/appointment/depListByHospitalCode?hospital_id=9&inputType=1' },
+    { id: 'sz_people', name: '深圳市人民医院', desc: '预约挂号', icon: '🏥', tag: '网页', type: 'url', url: 'https://wx.169jk.com/StaticPage/Hospital/FunctionList.html' },
+    { id: 'fs_first', name: '佛山第一人民医院', desc: '佛山Plus预约', icon: '🏥', tag: '小程序', type: 'miniprogram', url: '#小程序://佛山Plus/xHqNSWiNIpB74Xo' }
+  ];
+
+  var STORE_KEY = 'hosp_nav_custom';
+  var grid = document.getElementById('grid');
+  var toast = document.getElementById('toast');
+  var toastTimer = null;
+
+  function getCustom() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch (e) { return []; }
+  }
+  function setCustom(list) {
+    localStorage.setItem(STORE_KEY, JSON.stringify(list));
+  }
+  function getAll() {
+    return DEFAULTS.concat(getCustom());
+  }
+
+  function showToast(msg, ms) {
+    toast.textContent = msg;
+    toast.style.display = 'block';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.style.display = 'none'; }, ms || 2200);
+  }
+
+  function copyText(text, okMsg) {
+    // 微信内置浏览器优先用微信剪贴板 API
+    if (window.WeixinJSBridge) {
+      WeixinJSBridge.invoke('clipboard.setData', { data: text }, function () {
+        showToast(okMsg);
+      });
+      return;
+    }
+    // 兼容方案：textarea + execCommand
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, 999999);
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    if (ok) {
+      showToast(okMsg);
+    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        showToast(okMsg);
+      }).catch(function () {
+        showToast('复制失败，请长按链接手动复制');
+      });
+    } else {
+      showToast('复制失败，请长按链接手动复制');
+    }
+  }
+
+  function openItem(h) {
+    if (h.type === 'url') {
+      // 网页：直接跳转
+      window.location.href = h.url;
+    } else {
+      // 小程序：#小程序:// 链接复制后到微信对话框粘贴打开
+      copyText(h.url, '✅ 已复制！粘贴到微信对话框点开');
+    }
+  }
+
+  function render() {
+    var list = getAll();
+    var html = '';
+    list.forEach(function (h, i) {
+      var tagCls = h.tag === '网页' ? 'tag-web' : 'tag-mini';
+      var isCustom = !h.id.startsWith('sz_') && !h.id.startsWith('lg_') && !h.id.startsWith('fs_');
+      html +=
+        '<div class="card" data-i="' + i + '" ' + (isCustom ? 'data-custom="1"' : '') + '>' +
+          '<span class="card-tag ' + tagCls + '">' + h.tag + '</span>' +
+          '<div class="card-icon">' + (h.icon || '🏥') + '</div>' +
+          '<div class="card-name">' + h.name + '</div>' +
+          '<div class="card-desc">' + (h.desc || '') + '</div>' +
+        '</div>';
+    });
+    html +=
+      '<div class="card card-add" id="btn_add">' +
+        '<div class="add-icon">＋</div>' +
+        '<div class="add-text">添加</div>' +
+      '</div>';
+    grid.innerHTML = html;
+
+    var cards = grid.querySelectorAll('.card[data-i]');
+    cards.forEach(function (card) {
+      // 长按删除（仅自定义项）
+      var pressTimer = null;
+      card.addEventListener('touchstart', function (e) {
+        if (!card.dataset.custom) return;
+        pressTimer = setTimeout(function () {
+          deleteItem(Number(card.dataset.i));
+        }, 700);
+      });
+      card.addEventListener('touchend', function () { clearTimeout(pressTimer); });
+      card.addEventListener('touchmove', function () { clearTimeout(pressTimer); });
+      card.addEventListener('click', function () {
+        openItem(list[Number(card.dataset.i)]);
+      });
+    });
+
+    document.getElementById('btn_add').addEventListener('click', function () {
+      openModal();
+    });
+  }
+
+  function deleteItem(idx) {
+    var list = getAll();
+    var h = list[idx];
+    if (!h || !h.id.startsWith('c_')) return;
+    if (!confirm('删除「' + h.name + '」？')) return;
+    var custom = getCustom().filter(function (x) { return x.id !== h.id; });
+    setCustom(custom);
+    render();
+    showToast('已删除');
+  }
+
+  // ---- 弹窗 ----
+  var mask = document.getElementById('mask');
+  var fType = document.getElementById('f_type');
+  var rowUrl = document.getElementById('row_url');
+  var rowShare = document.getElementById('row_share');
+
+  function openModal() {
+    document.getElementById('f_name').value = '';
+    document.getElementById('f_icon').value = '🏥';
+    fType.value = 'url';
+    document.getElementById('f_url').value = '';
+    document.getElementById('f_share').value = '';
+    toggleRows();
+    mask.classList.add('show');
+  }
+  function closeModal() { mask.classList.remove('show'); }
+
+  function toggleRows() {
+    var isUrl = fType.value === 'url';
+    rowUrl.style.display = isUrl ? '' : 'none';
+    rowShare.style.display = isUrl ? 'none' : '';
+  }
+  fType.addEventListener('change', toggleRows);
+  mask.addEventListener('click', function (e) { if (e.target === mask) closeModal(); });
+
+  window.closeModal = closeModal;
+  window.saveItem = function () {
+    var name = document.getElementById('f_name').value.trim();
+    var icon = document.getElementById('f_icon').value.trim() || '🏥';
+    var type = fType.value;
+    var url = type === 'url'
+      ? document.getElementById('f_url').value.trim()
+      : document.getElementById('f_share').value.trim();
+
+    if (!name) { showToast('请填写名称'); return; }
+    if (!url) { showToast(type === 'url' ? '请填写网页链接' : '请填写小程序分享链接'); return; }
+
+    var custom = getCustom();
+    custom.push({
+      id: 'c_' + Date.now(),
+      name: name,
+      desc: type === 'url' ? '网页' : '小程序',
+      icon: icon,
+      tag: type === 'url' ? '网页' : '小程序',
+      type: type,
+      url: url
+    });
+    setCustom(custom);
+    closeModal();
+    render();
+    showToast('✅ 已添加');
+  };
+
+  // 初始化时监听微信剪贴板桥接就绪
+  document.addEventListener('WeixinJSBridgeReady', function () {}, false);
+
+  render();
+})();
+</script>
+</body>
+</html>
